@@ -1,0 +1,21 @@
+---
+- name: Update apt packages on debian based linux running apt package manager. 
+  hosts: debian-linux
+  become: true
+
+  # Task to update all debian based linux packages
+  tasks:
+    - name: Update apt packages
+      apt:
+        update_cache: true
+
+  # Upgrade after update
+    - name: Upgrade apt packages
+      apt:
+        upgrade: dist
+
+  # Clean after upgrade
+    - name: Clean apt cache
+      apt:
+        clean: true
+      
