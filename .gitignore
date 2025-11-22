@@ -1,2 +1,3 @@
 # ansible
 vault/*
+*.DS_Store
