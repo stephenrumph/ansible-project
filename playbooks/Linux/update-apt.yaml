@@ -1,20 +1,17 @@
 ---
-- name: Update apt packages on Debian-based Linux
+- name: Secure apt updates
   hosts: debian-linux
-  become: yes
-  become_method: sudo
-  become_user: root
+  gather_facts: false   # <- important, stops Python-based fact gathering
 
   tasks:
     - name: Update apt cache
-      apt:
-        update_cache: yes
+      become: true
+      command: apt-get update
 
-    - name: Upgrade apt packages (dist-upgrade)
-      apt:
-        upgrade: dist
+    - name: Upgrade packages
+      become: true
+      command: apt-get -y dist-upgrade
 
-    - name: Clean apt cache and autoremove
-      apt:
-        autoclean: yes
-        autoremove: yes
+    - name: Autoremove
+      become: true
+      command: apt-get -y autoremove
