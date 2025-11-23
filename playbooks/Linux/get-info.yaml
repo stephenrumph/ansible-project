@@ -1,0 +1,21 @@
+---
+- name: Get server information
+  hosts: debian-linux
+  gather_facts: false   # <- important, stops Python-based fact gathering
+
+  tasks:
+    - name: Get os version
+      become: true
+      command: uname -v
+
+    - name: Get kernel version
+      become: true
+      command: uname -r
+
+    - name: Get uptime
+      become: true
+      command: uptime
+
+    - name: Get memory usage
+      become: true
+      command: free -h
