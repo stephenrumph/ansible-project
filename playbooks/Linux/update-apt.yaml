@@ -1,21 +1,20 @@
 ---
-- name: Update apt packages on debian based linux running apt package manager. 
+- name: Update apt packages on Debian-based Linux
   hosts: debian-linux
-  become: true
+  become: yes
+  become_method: sudo
+  become_user: root
 
-  # Task to update all debian based linux packages
   tasks:
-    - name: Update apt packages
+    - name: Update apt cache
       apt:
-        update_cache: true
+        update_cache: yes
 
-  # Upgrade after update
-    - name: Upgrade apt packages
+    - name: Upgrade apt packages (dist-upgrade)
       apt:
         upgrade: dist
 
-  # Clean after upgrade
-    - name: Clean apt cache
+    - name: Clean apt cache and autoremove
       apt:
-        clean: true
-      
+        autoclean: yes
+        autoremove: yes
