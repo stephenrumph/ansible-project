@@ -1,0 +1,29 @@
+---
+- name: Install XAMPP to C:\xampp on Windows
+  hosts: windows
+  gather_facts: yes
+  vars:
+    xampp_version: "8.2.4-0"  # Change this to whatever version you want
+    xampp_installer: "xampp-windows-x64-{{ xampp_version }}-installer.exe"
+    installer_path: "C:\\xampp-installer.exe"
+    download_url: "https://sourceforge.net/projects/xampp/files/XAMPP%20Windows/{{ xampp_version }}/{{ xampp_installer }}/download"
+
+  tasks:
+
+    - name: Ensure C:\xampp directory exists
+      win_file:
+        path: "C:\\xampp"
+        state: directory
+
+    - name: Download XAMPP installer
+      win_get_url:
+        url: "{{ download_url }}"
+        dest: "{{ installer_path }}"
+
+    - name: Install XAMPP silently to C:\xampp
+      win_command: >
+        "{{ installer_path }}"
+        /S
+        /D=C:\xampp
+      args:
+        creates: "C:\\xampp\\xampp-control.exe"
