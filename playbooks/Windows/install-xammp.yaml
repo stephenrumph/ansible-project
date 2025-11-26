@@ -3,8 +3,8 @@
   hosts: windows
   gather_facts: yes
   vars:
-    xampp_version: "8.2.4-0"  # Change this to whatever version you want
-    xampp_installer: "xampp-windows-x64-{{ xampp_version }}-installer.exe"
+    xampp_version: "8.2.12-0"  # Change this to whatever version you want
+    xampp_installer: "xampp-windows-x64-{{ xampp_version }}-VS16-installer.exe"
     installer_path: "C:\\xampp-installer.exe"
     download_url: "https://sourceforge.net/projects/xampp/files/XAMPP%20Windows/{{ xampp_version }}/{{ xampp_installer }}/download"
 
