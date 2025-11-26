@@ -1,7 +1,7 @@
 ---
 - name: Install XAMPP to C:\xampp on Windows
   hosts: windows
-  gather_facts: yes
+  gather_facts: false
   vars:
     xampp_version: "8.2.12-0"  # Change this to whatever version you want
     xampp_installer: "xampp-windows-x64-{{ xampp_version }}-VS16-installer.exe"
