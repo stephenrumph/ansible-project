@@ -176,4 +176,3 @@
           {{ 'REBOOT NEEDED - reboot manually or run with -e pve_reboot_allowed=true'
              if (pve_reboot_needed | bool and not (pve_reboot_allowed | bool and not (pve_no_auto_reboot | default(false) | bool)))
              else 'up to date' }}
-             
