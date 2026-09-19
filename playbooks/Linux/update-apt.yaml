@@ -23,7 +23,8 @@
     - name: PVE | Make apt retry dropped downloads
       ansible.builtin.copy:
         dest: /etc/apt/apt.conf.d/80-retries
-        content: 'Acquire::Retries "5";\n'
+        content: |
+          Acquire::Retries "5";
         mode: "0644"
 
     # ---------- LXC containers via pct exec ----------
@@ -46,7 +47,7 @@
          else echo "SKIPPED: no apt-get in this container"; fi'
       loop: "{{ running_cts.stdout_lines | difference(pve_skip_cts | map('string') | list) }}"
       register: ct_updates
-      changed_when: "'0 upgraded, 0 newly installed' not in ct_updates.stdout"
+      changed_when: "'Setting up ' in ct_updates.stdout"   # dpkg prints this for every package it installs/upgrades
       ignore_errors: true       # one broken/locked container shouldn't stop the rest
 
     - name: LXC | Summary
@@ -126,7 +127,8 @@
     - name: Debian | Make apt retry dropped downloads
       ansible.builtin.copy:
         dest: /etc/apt/apt.conf.d/80-retries
-        content: 'Acquire::Retries "5";\n'
+        content: |
+          Acquire::Retries "5";
         mode: "0644"
       when: ansible_facts['os_family'] == 'Debian'
 
