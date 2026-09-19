@@ -1,79 +1,14 @@
 ---
 # Updates everything:
-#   Play 1 - VMs and cloud servers over normal SSH (arr, VPSes)
-#   Play 2 - Proxmox host: updates every running LXC via `pct exec`, then the host itself
+#   Play 1 - Proxmox host: updates every running LXC via `pct exec`, then the host itself
+#   Play 2 - VMs and cloud servers over normal SSH (arr, VPSes)
+# Proxmox goes first so a slow/broken VM can't block the host and containers.
 #
 # Allow VM/cloud reboots:   -e reboot_allowed=true
 # Allow Proxmox reboot:     -e pve_reboot_allowed=true
 
 # ======================================================================
-# PLAY 1 - VMs and cloud servers (normal SSH)
-# ======================================================================
-- name: Update VMs and cloud servers
-  hosts: linux_servers:!proxmox
-  become: true
-  gather_facts: true
-  gather_subset: [min]
-  vars:
-    reboot_allowed: false
-
-  tasks:
-    - name: Debian | Update cache and dist-upgrade
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
-        upgrade: dist
-      when: ansible_facts['os_family'] == 'Debian'
-
-    - name: Debian | Autoremove and autoclean
-      ansible.builtin.apt:
-        autoremove: true
-        autoclean: true
-      when: ansible_facts['os_family'] == 'Debian'
-
-    - name: Debian | Check if reboot is required
-      ansible.builtin.stat:
-        path: /var/run/reboot-required
-      register: deb_reboot_file
-      when: ansible_facts['os_family'] == 'Debian'
-
-    - name: RedHat | Upgrade all packages
-      ansible.builtin.dnf:
-        name: "*"
-        state: latest
-        update_cache: true
-      when: ansible_facts['os_family'] == 'RedHat'
-
-    - name: RedHat | Check if reboot is required
-      ansible.builtin.command: needs-restarting -r
-      register: rh_reboot_check
-      changed_when: false
-      failed_when: false
-      when: ansible_facts['os_family'] == 'RedHat'
-
-    - name: Work out whether a reboot is needed
-      ansible.builtin.set_fact:
-        reboot_needed: >-
-          {{ (deb_reboot_file.stat.exists | default(false))
-             or (rh_reboot_check.rc | default(0)) == 1 }}
-
-    - name: Reboot if needed and allowed
-      ansible.builtin.reboot:
-        reboot_timeout: 600
-      when:
-        - reboot_needed | bool
-        - reboot_allowed | bool
-        - not (no_auto_reboot | default(false) | bool)
-
-    - name: Report hosts still waiting on a reboot
-      ansible.builtin.debug:
-        msg: "{{ inventory_hostname }} needs a reboot - reboot it manually or run with -e reboot_allowed=true"
-      when:
-        - reboot_needed | bool
-        - not (reboot_allowed | bool) or (no_auto_reboot | default(false) | bool)
-
-# ======================================================================
-# PLAY 2 - Proxmox host: containers first, then the host
+# PLAY 1 - Proxmox host: containers first, then the host
 # ======================================================================
 - name: Update Proxmox containers and host
   hosts: proxmox
@@ -85,6 +20,12 @@
     pve_skip_cts: []            # container IDs to leave alone, e.g. [105]
 
   tasks:
+    - name: PVE | Make apt retry dropped downloads
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/80-retries
+        content: 'Acquire::Retries "5";\n'
+        mode: "0644"
+
     # ---------- LXC containers via pct exec ----------
     - name: LXC | Find running containers
       ansible.builtin.shell: set -o pipefail; pct list | awk 'NR>1 && $2=="running" {print $1}'
@@ -98,8 +39,8 @@
         pct exec {{ item }} -- sh -c
         'if command -v apt-get >/dev/null 2>&1; then
            export DEBIAN_FRONTEND=noninteractive;
-           apt-get update -q &&
-           apt-get -y -q -o Dpkg::Options::=--force-confold dist-upgrade &&
+           apt-get -o Acquire::Retries=5 update -q &&
+           apt-get -y -q -o Acquire::Retries=5 -o Dpkg::Options::=--force-confold dist-upgrade &&
            apt-get -y -q autoremove &&
            apt-get -q autoclean;
          else echo "SKIPPED: no apt-get in this container"; fi'
@@ -169,3 +110,76 @@
           running {{ running_kernel.stdout }}, newest {{ newest_kernel.stdout }} |
           {{ 'REBOOT NEEDED - reboot manually when convenient'
              if pve_reboot_needed | bool else 'kernel up to date' }}
+
+# ======================================================================
+# PLAY 2 - VMs and cloud servers (normal SSH)
+# ======================================================================
+- name: Update VMs and cloud servers
+  hosts: linux_servers:!proxmox
+  become: true
+  gather_facts: true
+  gather_subset: [min]
+  vars:
+    reboot_allowed: false
+
+  tasks:
+    - name: Debian | Make apt retry dropped downloads
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/80-retries
+        content: 'Acquire::Retries "5";\n'
+        mode: "0644"
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Debian | Update cache and dist-upgrade
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+        upgrade: dist
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Debian | Autoremove and autoclean
+      ansible.builtin.apt:
+        autoremove: true
+        autoclean: true
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Debian | Check if reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: deb_reboot_file
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: RedHat | Upgrade all packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_cache: true
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: RedHat | Check if reboot is required
+      ansible.builtin.command: needs-restarting -r
+      register: rh_reboot_check
+      changed_when: false
+      failed_when: false
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Work out whether a reboot is needed
+      ansible.builtin.set_fact:
+        reboot_needed: >-
+          {{ (deb_reboot_file.stat.exists | default(false))
+             or (rh_reboot_check.rc | default(0)) == 1 }}
+
+    - name: Reboot if needed and allowed
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+      when:
+        - reboot_needed | bool
+        - reboot_allowed | bool
+        - not (no_auto_reboot | default(false) | bool)
+
+    - name: Report hosts still waiting on a reboot
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} needs a reboot - reboot it manually or run with -e reboot_allowed=true"
+      when:
+        - reboot_needed | bool
+        - not (reboot_allowed | bool) or (no_auto_reboot | default(false) | bool)
