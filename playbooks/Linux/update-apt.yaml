@@ -1,17 +1,173 @@
 ---
-- name: Secure apt updates
-  hosts: debian-linux
-  gather_facts: false   # <- important, stops Python-based fact gathering
+# Updates every server: regular Linux boxes (home + cloud) first, then Proxmox hosts.
+# Run everything:           ansible-playbook playbooks/Linux/update-all.yaml
+# Home only / cloud only:   ... --limit home   |   ... --limit cloud
+# Proxmox hosts only:       ... --limit proxmox
+# Allow guest reboots:      ... -e reboot_allowed=true
+# Allow Proxmox reboots:    ... -e pve_reboot_allowed=true   (one node at a time)
+
+# ======================================================================
+# PLAY 1 - VMs, containers, cloud servers (everything except PVE hosts)
+# ======================================================================
+- name: Update Linux servers (home and cloud)
+  hosts: linux_servers:!proxmox
+  become: true
+  gather_facts: true
+  gather_subset: [min]
+  serial: "{{ batch_size | default('100%') }}"
+  vars:
+    reboot_allowed: false
 
   tasks:
-    - name: Update apt cache
-      become: true
-      command: apt-get update
+    # ---------- Debian / Ubuntu ----------
+    - name: Debian | Update cache and dist-upgrade
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+        upgrade: dist
+      when: ansible_facts['os_family'] == 'Debian'
 
-    - name: Upgrade packages
-      become: true
-      command: apt-get -y dist-upgrade
+    - name: Debian | Autoremove and autoclean
+      ansible.builtin.apt:
+        autoremove: true
+        autoclean: true
+      when: ansible_facts['os_family'] == 'Debian'
 
-    - name: Autoremove
-      become: true
-      command: apt-get -y autoremove
+    - name: Debian | Check if reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: deb_reboot_file
+      when: ansible_facts['os_family'] == 'Debian'
+
+    # ---------- RHEL / Rocky / Alma / Fedora ----------
+    - name: RedHat | Upgrade all packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_cache: true
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: RedHat | Autoremove
+      ansible.builtin.dnf:
+        autoremove: true
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: RedHat | Check if reboot is required
+      ansible.builtin.command: needs-restarting -r
+      register: rh_reboot_check
+      changed_when: false
+      failed_when: false
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    # ---------- Reboot handling ----------
+    - name: Work out whether a reboot is needed
+      ansible.builtin.set_fact:
+        reboot_needed: >-
+          {{ (deb_reboot_file.stat.exists | default(false))
+             or (rh_reboot_check.rc | default(0)) == 1 }}
+
+    - name: Reboot if needed and allowed
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+      when: reboot_needed | bool and reboot_allowed | bool
+
+    - name: Report hosts still waiting on a reboot
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} needs a reboot (run with -e reboot_allowed=true)"
+      when: reboot_needed | bool and not (reboot_allowed | bool)
+
+# ======================================================================
+# PLAY 2 - Proxmox VE hosts, strictly one node at a time
+# ======================================================================
+- name: Update Proxmox VE hosts
+  hosts: proxmox
+  become: true
+  gather_facts: true
+  gather_subset: [min]
+  serial: 1                      # never touch two nodes at once
+  any_errors_fatal: true         # if one node fails, stop before the next
+  vars:
+    pve_reboot_allowed: false
+
+  tasks:
+    - name: PVE | Update cache and dist-upgrade (Proxmox requires dist/full-upgrade)
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+
+    - name: PVE | Autoremove and autoclean
+      ansible.builtin.apt:
+        autoremove: true
+        autoclean: true
+
+    - name: PVE | Show installed Proxmox version
+      ansible.builtin.command: pveversion
+      register: pve_version
+      changed_when: false
+
+    # Proxmox kernels don't reliably create /var/run/reboot-required,
+    # so compare the running kernel with the newest one installed.
+    - name: PVE | Get running kernel
+      ansible.builtin.command: uname -r
+      register: running_kernel
+      changed_when: false
+
+    - name: PVE | Get newest installed kernel
+      ansible.builtin.shell: set -o pipefail; ls -1 /boot/vmlinuz-* | sed 's|/boot/vmlinuz-||' | sort -V | tail -n1
+      args:
+        executable: /bin/bash
+      register: newest_kernel
+      changed_when: false
+
+    - name: PVE | Decide whether a reboot is needed
+      ansible.builtin.set_fact:
+        pve_reboot_needed: "{{ running_kernel.stdout != newest_kernel.stdout }}"
+
+    - name: PVE | Is this node part of a cluster?
+      ansible.builtin.stat:
+        path: /etc/pve/corosync.conf
+      register: corosync_conf
+
+    - name: PVE | Make sure the cluster is quorate before rebooting
+      ansible.builtin.command: pvecm status
+      register: pvecm_before
+      changed_when: false
+      failed_when: "'Quorate:          Yes' not in pvecm_before.stdout and 'Quorate: Yes' not in pvecm_before.stdout"
+      when:
+        - corosync_conf.stat.exists
+        - pve_reboot_needed | bool
+        - pve_reboot_allowed | bool
+        - not (pve_no_auto_reboot | default(false) | bool)
+
+    - name: PVE | Reboot node (guests shut down cleanly, onboot guests restart)
+      ansible.builtin.reboot:
+        reboot_timeout: 1200     # hosts with many guests take a while
+        post_reboot_delay: 30
+      when:
+        - pve_reboot_needed | bool
+        - pve_reboot_allowed | bool
+        - not (pve_no_auto_reboot | default(false) | bool)
+
+    - name: PVE | Wait for the node to rejoin a quorate cluster
+      ansible.builtin.command: pvecm status
+      register: pvecm_after
+      changed_when: false
+      until: "'Quorate:          Yes' in pvecm_after.stdout or 'Quorate: Yes' in pvecm_after.stdout"
+      retries: 30
+      delay: 10
+      when:
+        - corosync_conf.stat.exists
+        - pve_reboot_needed | bool
+        - pve_reboot_allowed | bool
+        - not (pve_no_auto_reboot | default(false) | bool)
+
+    - name: PVE | Summary
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: {{ pve_version.stdout }} |
+          running {{ running_kernel.stdout }}, newest {{ newest_kernel.stdout }} |
+          {{ 'REBOOT NEEDED - reboot manually or run with -e pve_reboot_allowed=true'
+             if (pve_reboot_needed | bool and not (pve_reboot_allowed | bool and not (pve_no_auto_reboot | default(false) | bool)))
+             else 'up to date' }}
