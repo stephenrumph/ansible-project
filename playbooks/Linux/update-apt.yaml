@@ -69,12 +69,17 @@
     - name: Reboot if needed and allowed
       ansible.builtin.reboot:
         reboot_timeout: 600
-      when: reboot_needed | bool and reboot_allowed | bool
+      when:
+        - reboot_needed | bool
+        - reboot_allowed | bool
+        - not (no_auto_reboot | default(false) | bool)
 
     - name: Report hosts still waiting on a reboot
       ansible.builtin.debug:
-        msg: "{{ inventory_hostname }} needs a reboot (run with -e reboot_allowed=true)"
-      when: reboot_needed | bool and not (reboot_allowed | bool)
+        msg: "{{ inventory_hostname }} needs a reboot - reboot it manually or run with -e reboot_allowed=true"
+      when:
+        - reboot_needed | bool
+        - not (reboot_allowed | bool) or (no_auto_reboot | default(false) | bool)
 
 # ======================================================================
 # PLAY 2 - Proxmox VE hosts, strictly one node at a time
@@ -171,3 +176,4 @@
           {{ 'REBOOT NEEDED - reboot manually or run with -e pve_reboot_allowed=true'
              if (pve_reboot_needed | bool and not (pve_reboot_allowed | bool and not (pve_no_auto_reboot | default(false) | bool)))
              else 'up to date' }}
+             
