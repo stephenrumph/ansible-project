@@ -1,0 +1,60 @@
+---
+- name: Validate container creation definitions
+  ansible.builtin.assert:
+    that:
+      - item.vmid is defined
+      - item.node is defined
+      - item.hostname is defined
+      - item.ostemplate is defined
+      - item.storage is defined
+      - item.disk is defined
+      - item.cores is defined
+      - item.memory is defined
+      - item.swap is defined
+      - item.onboot is defined
+      - item.unprivileged is defined
+      - item.netif is defined
+  loop: "{{ proxmox_lxc_instances }}"
+  loop_control:
+    label: "{{ item.vmid | default('undefined') }}"
+
+- name: Explain check-mode limitation
+  ansible.builtin.debug:
+    msg: >-
+      Check mode does not call the Proxmox lifecycle module. It would ensure
+      VMID {{ item.vmid }} exists with the supplied explicit configuration.
+  loop: "{{ proxmox_lxc_instances }}"
+  loop_control:
+    label: "{{ item.vmid }}"
+  when: ansible_check_mode
+
+- name: Create LXC containers
+  community.general.proxmox:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_token_id: "{{ proxmox_api_token_id }}"
+    api_token_secret: "{{ proxmox_api_token_secret }}"
+    validate_certs: "{{ proxmox_validate_certs }}"
+    vmid: "{{ item.vmid | int }}"
+    node: "{{ item.node }}"
+    hostname: "{{ item.hostname }}"
+    ostemplate: "{{ item.ostemplate }}"
+    storage: "{{ item.storage }}"
+    disk: "{{ item.disk }}"
+    cores: "{{ item.cores | int }}"
+    memory: "{{ item.memory | int }}"
+    swap: "{{ item.swap | int }}"
+    onboot: "{{ item.onboot | bool }}"
+    unprivileged: "{{ item.unprivileged | bool }}"
+    netif: "{{ item.netif }}"
+    tags: "{{ item.tags | default([]) }}"
+    pubkey: "{{ item.pubkey | default(omit) }}"
+    proxmox_default_behavior: no_defaults
+    timeout: "{{ proxmox_operation_timeout | int }}"
+    state: present
+    force: false
+  loop: "{{ proxmox_lxc_instances }}"
+  loop_control:
+    label: "{{ item.vmid }}"
+  when: not ansible_check_mode
+  no_log: true

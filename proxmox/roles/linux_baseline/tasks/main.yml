@@ -1,0 +1,18 @@
+---
+- name: Require Debian-family containers
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == 'Debian'
+    fail_msg: "The baseline currently supports Debian-family containers only."
+
+- name: Install baseline packages
+  ansible.builtin.apt:
+    name: "{{ baseline_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Set container timezone
+  community.general.timezone:
+    name: "{{ baseline_timezone }}"
+  when: baseline_manage_timezone | bool

@@ -1,0 +1,7 @@
+---
+baseline_packages:
+  - ca-certificates
+  - curl
+  - sudo
+baseline_timezone: Australia/Brisbane
+baseline_manage_timezone: true

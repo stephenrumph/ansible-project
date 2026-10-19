@@ -1,0 +1,18 @@
+---
+- name: Run lifecycle preflight
+  ansible.builtin.import_tasks: preflight.yml
+
+- name: Display lifecycle plan
+  ansible.builtin.debug:
+    msg:
+      action: "{{ proxmox_lxc_action }}"
+      vmids: "{{ proxmox_lxc_instances | map(attribute='vmid') | list }}"
+      check_mode: "{{ ansible_check_mode }}"
+
+- name: Run create tasks
+  ansible.builtin.import_tasks: create.yml
+  when: proxmox_lxc_action == 'create'
+
+- name: Run power tasks
+  ansible.builtin.import_tasks: power.yml
+  when: proxmox_lxc_action == 'power'

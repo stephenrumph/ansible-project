@@ -1,0 +1,13 @@
+---
+- name: Display safe inventory fields
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Show non-secret inventory summary
+      ansible.builtin.debug:
+        msg:
+          inventory_name: "{{ inventory_hostname }}"
+          proxmox_type: "{{ proxmox_vmtype | default('unknown') }}"
+          proxmox_status: "{{ proxmox_status | default('unknown') }}"
+          proxmox_vmid: "{{ proxmox_vmid | default('unknown') }}"
+          groups: "{{ group_names }}"

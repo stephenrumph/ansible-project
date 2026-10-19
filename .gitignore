@@ -1,3 +1,27 @@
-# ansible
+# Ansible
 vault/*
+*.retry
+.fact_cache/
+artifacts/
+reports/
+
+# Production and secret inventory variants
+inventories/*/group_vars/
+inventories/*/host_vars/
+inventories/**/*.vault.yml
+inventories/**/*.secret.yml
+vault-password*
+
+# Credentials and runtime environments
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example
+
+# Local tools
 .DS_Store
+.vscode/
+.idea/

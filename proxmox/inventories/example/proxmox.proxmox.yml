@@ -1,0 +1,16 @@
+---
+plugin: community.general.proxmox
+url: "{{ lookup('ansible.builtin.env', 'PROXMOX_URL') }}"
+user: "{{ lookup('ansible.builtin.env', 'PROXMOX_API_USER') }}"
+token_id: "{{ lookup('ansible.builtin.env', 'PROXMOX_API_TOKEN_ID') }}"
+token_secret: "{{ lookup('ansible.builtin.env', 'PROXMOX_API_TOKEN_SECRET') }}"
+validate_certs: true
+want_facts: true
+want_proxmox_nodes_ansible_host: false
+strict: false
+keyed_groups:
+  - key: proxmox_tags_parsed | default([])
+    prefix: pve_tag
+    separator: "_"
+groups:
+  proxmox_lxc: "proxmox_vmtype | default('') == 'lxc'"

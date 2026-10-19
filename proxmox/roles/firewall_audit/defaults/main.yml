@@ -1,0 +1,17 @@
+---
+firewall_guest_audit_commands:
+  - [ip, -brief, address]
+  - [ip, route]
+  - [ss, -lntup]
+  - [nft, list, ruleset]
+  - [iptables-save]
+  - [ip6tables-save]
+firewall_host_audit_commands:
+  - [pve-firewall, status]
+  - [pve-firewall, compile]
+  - [ss, -lntup]
+  - [ip, -brief, address]
+  - [ip, route]
+  - [iptables-save]
+  - [ip6tables-save]
+  - [nft, list, ruleset]

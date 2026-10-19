@@ -1,0 +1,9 @@
+---
+- name: Create Proxmox LXC containers
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    proxmox_lxc_action: create
+  roles:
+    - role: proxmox_lxc
