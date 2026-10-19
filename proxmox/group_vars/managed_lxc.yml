@@ -1,0 +1,8 @@
+---
+# No firewall policy is applied by this suite. Production source ranges and
+# service ports belong in Semaphore inventory/group variables, not Git.
+firewall_change_approved: false
+firewall_management_ipv4_cidrs: []
+firewall_management_ipv6_cidrs: []
+firewall_allowed_tcp_ports: []
+firewall_allowed_udp_ports: []

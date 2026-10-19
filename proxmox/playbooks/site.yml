@@ -1,0 +1,3 @@
+---
+- name: Apply the standard container baseline
+  ansible.builtin.import_playbook: configure.yml

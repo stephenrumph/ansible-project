@@ -1,0 +1,9 @@
+---
+- name: Change Proxmox LXC power state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    proxmox_lxc_action: power
+  roles:
+    - role: proxmox_lxc

@@ -1,0 +1,9 @@
+---
+- name: Configure managed Linux containers
+  hosts: managed_lxc
+  gather_facts: true
+  become: true
+  serial: "{{ configuration_serial | default(1) }}"
+  any_errors_fatal: true
+  roles:
+    - role: linux_baseline

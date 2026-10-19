@@ -1,0 +1,42 @@
+---
+- name: Validate requested power state
+  ansible.builtin.assert:
+    that:
+      - proxmox_power_state in ['started', 'stopped', 'restarted']
+      - >-
+        proxmox_power_state == 'started' or
+        proxmox_power_confirmation ==
+        ('POWER-' ~ (proxmox_power_state | upper) ~ ':' ~
+        (proxmox_lxc_instances
+         | map(attribute='vmid')
+         | map('string')
+         | join(',')))
+    fail_msg: >-
+      Stopping or restarting requires a target-bound confirmation such as
+      POWER-STOPPED:9001,9002 or POWER-RESTARTED:9001,9002. VMID order must
+      match proxmox_lxc_instances.
+
+- name: Explain check-mode limitation
+  ansible.builtin.debug:
+    msg: "Would set VMID {{ item.vmid }} to {{ proxmox_power_state }}."
+  loop: "{{ proxmox_lxc_instances }}"
+  loop_control:
+    label: "{{ item.vmid }}"
+  when: ansible_check_mode
+
+- name: Set LXC power state
+  community.general.proxmox:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_token_id: "{{ proxmox_api_token_id }}"
+    api_token_secret: "{{ proxmox_api_token_secret }}"
+    validate_certs: "{{ proxmox_validate_certs }}"
+    vmid: "{{ item.vmid | int }}"
+    state: "{{ proxmox_power_state }}"
+    force: false
+    timeout: "{{ proxmox_operation_timeout | int }}"
+  loop: "{{ proxmox_lxc_instances }}"
+  loop_control:
+    label: "{{ item.vmid }}"
+  when: not ansible_check_mode
+  no_log: true

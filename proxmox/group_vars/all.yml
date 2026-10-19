@@ -1,0 +1,27 @@
+---
+ansible_python_interpreter: /usr/bin/python3
+baseline_packages:
+  - ca-certificates
+  - curl
+  - sudo
+baseline_timezone: Australia/Brisbane
+baseline_manage_timezone: true
+configuration_serial: 1
+
+firewall_guest_audit_commands:
+  - [ip, -brief, address]
+  - [ip, route]
+  - [ss, -lntup]
+  - [nft, list, ruleset]
+  - [iptables-save]
+  - [ip6tables-save]
+
+firewall_host_audit_commands:
+  - [pve-firewall, status]
+  - [pve-firewall, compile]
+  - [ss, -lntup]
+  - [ip, -brief, address]
+  - [ip, route]
+  - [iptables-save]
+  - [ip6tables-save]
+  - [nft, list, ruleset]

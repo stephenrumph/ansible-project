@@ -1,0 +1,13 @@
+---
+proxmox_api_host: "{{ lookup('ansible.builtin.env', 'PROXMOX_API_HOST') }}"
+proxmox_api_user: "{{ lookup('ansible.builtin.env', 'PROXMOX_API_USER') }}"
+proxmox_api_token_id: >-
+  {{ lookup('ansible.builtin.env', 'PROXMOX_API_TOKEN_ID') }}
+proxmox_api_token_secret: >-
+  {{ lookup('ansible.builtin.env', 'PROXMOX_API_TOKEN_SECRET') }}
+proxmox_validate_certs: true
+proxmox_operation_timeout: 120
+proxmox_lxc_action: plan
+proxmox_lxc_instances: []
+proxmox_power_state: started
+proxmox_power_confirmation: ""

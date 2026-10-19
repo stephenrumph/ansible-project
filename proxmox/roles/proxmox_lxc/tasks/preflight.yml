@@ -1,0 +1,45 @@
+---
+- name: Validate Proxmox API environment
+  ansible.builtin.assert:
+    that:
+      - proxmox_api_host | length > 0
+      - proxmox_api_user | length > 0
+      - proxmox_api_token_id | length > 0
+      - proxmox_api_token_secret | length > 0
+      - proxmox_validate_certs | bool
+    fail_msg: >-
+      Define PROXMOX_API_HOST, PROXMOX_API_USER, PROXMOX_API_TOKEN_ID and
+      PROXMOX_API_TOKEN_SECRET in a protected Semaphore Environment. Install a
+      trusted CA certificate instead of disabling TLS verification.
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Validate lifecycle request
+  ansible.builtin.assert:
+    that:
+      - proxmox_lxc_action in ['plan', 'create', 'power']
+      - proxmox_lxc_instances | type_debug == 'list'
+      - proxmox_lxc_instances | length > 0
+    fail_msg: "Supply a non-empty proxmox_lxc_instances list through Semaphore."
+
+- name: Validate every requested VMID
+  ansible.builtin.assert:
+    that:
+      - item.vmid is defined
+      - item.vmid is integer
+      - item.vmid >= 100
+      - item.vmid <= 999999999
+    fail_msg: >-
+      Every VMID must be a YAML integer in Proxmox's supported range
+      100-999999999. Quoted strings and floating-point values are rejected.
+  loop: "{{ proxmox_lxc_instances }}"
+  loop_control:
+    label: "{{ item.vmid | default('undefined') }}"
+
+- name: Require unique requested VMIDs
+  ansible.builtin.assert:
+    that:
+      - >-
+        (proxmox_lxc_instances | map(attribute='vmid') | list | unique | length)
+        == (proxmox_lxc_instances | length)
+    fail_msg: "Each requested VMID must appear exactly once."
