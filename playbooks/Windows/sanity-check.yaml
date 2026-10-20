@@ -1,16 +1,17 @@
 ---
 - name: Sanity check WinRM to Windows host
   hosts: windows
-  gather_facts: no
+  gather_facts: false
 
   tasks:
     - name: WinRM ping test
-    # This doesn't use ICMP – it's an Ansible WinRM check
+      # This uses Ansible's WinRM connection rather than ICMP.
       ansible.windows.win_ping:
 
     - name: Run whoami on Windows
       ansible.windows.win_command: whoami
       register: whoami_result
+      changed_when: false
 
     - name: Show whoami output
       ansible.builtin.debug:
@@ -19,6 +20,7 @@
     - name: Check hostname
       ansible.windows.win_command: hostname
       register: hostname_result
+      changed_when: false
 
     - name: Show hostname output
       ansible.builtin.debug:

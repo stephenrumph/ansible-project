@@ -151,7 +151,7 @@
       register: deb_reboot_file
       when: ansible_facts['os_family'] == 'Debian'
 
-    - name: RedHat | Upgrade all packages
+    - name: RedHat | Upgrade all packages  # noqa package-latest
       ansible.builtin.dnf:
         name: "*"
         state: latest
