@@ -1,41 +1,45 @@
 ---
 - name: Get server information
-  hosts: debian-linux
+  hosts: debian_linux
   gather_facts: false
 
   tasks:
     - name: Get OS version
       become: true
-      command: uname -v
+      ansible.builtin.command: uname -v
       register: os_version
+      changed_when: false
 
     - name: Show OS version
-      debug:
+      ansible.builtin.debug:
         msg: "{{ os_version.stdout }}"
 
     - name: Get kernel version
       become: true
-      command: uname -r
+      ansible.builtin.command: uname -r
       register: kernel_version
+      changed_when: false
 
     - name: Show kernel version
-      debug:
+      ansible.builtin.debug:
         msg: "{{ kernel_version.stdout }}"
 
     - name: Get uptime
       become: true
-      command: uptime
+      ansible.builtin.command: uptime
       register: uptime_out
+      changed_when: false
 
     - name: Show uptime
-      debug:
+      ansible.builtin.debug:
         msg: "{{ uptime_out.stdout }}"
 
     - name: Get memory usage
       become: true
-      command: free -h
+      ansible.builtin.command: free -h
       register: mem_out
+      changed_when: false
 
     - name: Show memory usage
-      debug:
+      ansible.builtin.debug:
         msg: "{{ mem_out.stdout }}"

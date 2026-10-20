@@ -3,27 +3,26 @@
   hosts: windows
   gather_facts: false
   vars:
-    xampp_version: "8.2.12-0"  # Change this to whatever version you want
+    xampp_version: "8.2.12-0"  # Update only after verifying the upstream checksum.
     xampp_installer: "xampp-windows-x64-{{ xampp_version }}-VS16-installer.exe"
     installer_path: "C:\\xampp-installer.exe"
-    download_url: "https://sourceforge.net/projects/xampp/files/XAMPP%20Windows/{{ xampp_version }}/{{ xampp_installer }}/download"
+    download_url: >-
+      https://sourceforge.net/projects/xampp/files/XAMPP%20Windows/
+      {{ xampp_version }}/{{ xampp_installer }}/download
 
   tasks:
-
     - name: Ensure C:\xampp directory exists
-      win_file:
+      ansible.windows.win_file:
         path: "C:\\xampp"
         state: directory
 
     - name: Download XAMPP installer
-      win_get_url:
+      ansible.windows.win_get_url:
         url: "{{ download_url }}"
         dest: "{{ installer_path }}"
 
     - name: Install XAMPP silently to C:\xampp
-      win_command: >
-        "{{ installer_path }}"
-        /S
-        /D=C:\xampp
+      ansible.windows.win_command: >-
+        "{{ installer_path }}" /S /D=C:\xampp
       args:
         creates: "C:\\xampp\\xampp-control.exe"

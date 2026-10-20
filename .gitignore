@@ -1,3 +1,8 @@
-# ansible
-vault/*
+# Ansible: production inventory, credentials and encrypted data stay in Semaphore.
+inventories/production/
+vault/
+*.vault.yml
+*.vault.yaml
+.env
+*.retry
 .DS_Store
